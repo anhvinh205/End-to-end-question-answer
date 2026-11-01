@@ -1,0 +1,27 @@
+{
+  "retrieval": {
+    "bm25": {
+      "recall@1": 0.4648,
+      "recall@5": 0.7052,
+      "recall@10": 0.7637,
+      "recall@20": 0.8087,
+      "mrr": 0.5703,
+      "answer_recall@1": 0.5258,
+      "answer_recall@5": 0.7473,
+      "answer_recall@10": 0.8019,
+      "answer_recall@20": 0.8435,
+      "queries": 4135.0,
+      "avg_latency_ms": 1.86
+    }
+  },
+  "meta": {
+    "split": "validation",
+    "num_queries": 4135,
+    "corpus_passages": 20000,
+    "encoder": null,
+    "reader": null,
+    "device": "cpu (x86_64)",
+    "torch": "2.15.0+cu132",
+    "generated_at": "2026-11-01 09:35 UTC"
+  }
+}

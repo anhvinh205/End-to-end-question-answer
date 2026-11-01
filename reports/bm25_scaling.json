@@ -1,0 +1,66 @@
+{
+  "queries": 1000,
+  "split": "validation",
+  "rows": [
+    {
+      "corpus_passages": 12000,
+      "index_build_s": 1.8,
+      "recall@1": 0.542,
+      "recall@5": 0.749,
+      "recall@10": 0.797,
+      "recall@20": 0.844,
+      "mrr": 0.634,
+      "answer_recall@1": 0.602,
+      "answer_recall@5": 0.779,
+      "answer_recall@10": 0.822,
+      "answer_recall@20": 0.867,
+      "queries": 1000.0,
+      "avg_latency_ms": 1.82
+    },
+    {
+      "corpus_passages": 20000,
+      "index_build_s": 2.8,
+      "recall@1": 0.484,
+      "recall@5": 0.712,
+      "recall@10": 0.772,
+      "recall@20": 0.814,
+      "mrr": 0.585,
+      "answer_recall@1": 0.551,
+      "answer_recall@5": 0.757,
+      "answer_recall@10": 0.804,
+      "answer_recall@20": 0.846,
+      "queries": 1000.0,
+      "avg_latency_ms": 1.73
+    },
+    {
+      "corpus_passages": 50000,
+      "index_build_s": 6.1,
+      "recall@1": 0.363,
+      "recall@5": 0.633,
+      "recall@10": 0.707,
+      "recall@20": 0.76,
+      "mrr": 0.4811,
+      "answer_recall@1": 0.46,
+      "answer_recall@5": 0.704,
+      "answer_recall@10": 0.771,
+      "answer_recall@20": 0.814,
+      "queries": 1000.0,
+      "avg_latency_ms": 2.02
+    },
+    {
+      "corpus_passages": 85306,
+      "index_build_s": 10.0,
+      "recall@1": 0.301,
+      "recall@5": 0.561,
+      "recall@10": 0.657,
+      "recall@20": 0.719,
+      "mrr": 0.4189,
+      "answer_recall@1": 0.423,
+      "answer_recall@5": 0.662,
+      "answer_recall@10": 0.749,
+      "answer_recall@20": 0.804,
+      "queries": 1000.0,
+      "avg_latency_ms": 1.84
+    }
+  ]
+}
