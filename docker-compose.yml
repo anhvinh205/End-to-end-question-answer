@@ -1,0 +1,32 @@
+# API (port 8000) + Streamlit UI (port 8501). The UI is a thin client of the API, so the
+# models are loaded once. Without ./artifacts the API serves the bundled demo corpus.
+services:
+  api:
+    build: .
+    image: nq-qa:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./artifacts:/app/artifacts
+      - hf-cache:/home/app/.cache/huggingface
+    restart: unless-stopped
+
+  ui:
+    image: nq-qa:latest
+    command: ["streamlit", "run", "app/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    environment:
+      QA_API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  hf-cache:
