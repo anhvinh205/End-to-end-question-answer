@@ -37,8 +37,8 @@ retriever:
   mode: "hybrid" # query-time: bm25 | dense | hybrid (dense + BM25 fused with RRF)
   dense_encoder: "biencoder" # build-time: biencoder (mean pooling) | cls (vanilla DistilBERT baseline)
   cls_model_name: "distilbert-base-uncased"
-  biencoder_model_name: "BAAI/bge-base-en-v1.5" # SOTA Dense Encoder (768-dim, top of MTEB benchmark)
-  # biencoder_model_name: "sentence-transformers/multi-qa-MiniLM-L6-cos-v1" # lightweight baseline alternative
+  biencoder_model_name: "sentence-transformers/multi-qa-MiniLM-L6-cos-v1" # matches current artifacts index
+  # biencoder_model_name: "BAAI/bge-base-en-v1.5" # SOTA alternative (requires rebuilding index with `make index`)
   max_passage_tokens: 256
   index_type: "FlatIP" # FlatIP | FlatL2 | IVFFlat
   nlist: 256 # IVFFlat only
