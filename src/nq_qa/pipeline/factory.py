@@ -13,7 +13,7 @@ from typing import Any
 
 from nq_qa.data.corpus import passages_from_records
 from nq_qa.data.nq_csv import read_jsonl
-from nq_qa.models.reader import ExtractiveReader
+from nq_qa.models.reader import ExtractiveReader, read_reader_meta
 from nq_qa.models.retriever import DenseEncoder, HybridRetriever
 from nq_qa.pipeline.e2e_qa import EndToEndQAPipeline
 
@@ -99,11 +99,15 @@ def build_reader(cfg: Mapping[str, Any]) -> ExtractiveReader:
     dcfg = cfg.get("dataset", {})
     path = resolve_reader_path(cfg)
     logger.info("Loading reader from %s", path)
-    null_thresh = (
-        float(rcfg["null_threshold"])
-        if ("null_threshold" in rcfg and rcfg["null_threshold"] is not None)
-        else None
-    )
+    meta = read_reader_meta(path)
+    if "null_threshold" in meta:
+        null_thresh = None
+    else:
+        null_thresh = (
+            float(rcfg["null_threshold"])
+            if ("null_threshold" in rcfg and rcfg["null_threshold"] is not None)
+            else None
+        )
     return ExtractiveReader(
         path,
         n_best_size=int(rcfg.get("n_best_size", 20)),
