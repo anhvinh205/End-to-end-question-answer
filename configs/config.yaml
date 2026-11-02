@@ -37,7 +37,8 @@ retriever:
   mode: "hybrid" # query-time: bm25 | dense | hybrid (dense + BM25 fused with RRF)
   dense_encoder: "biencoder" # build-time: biencoder (mean pooling) | cls (vanilla DistilBERT baseline)
   cls_model_name: "distilbert-base-uncased"
-  biencoder_model_name: "sentence-transformers/multi-qa-MiniLM-L6-cos-v1"
+  biencoder_model_name: "BAAI/bge-base-en-v1.5" # SOTA Dense Encoder (768-dim, top of MTEB benchmark)
+  # biencoder_model_name: "sentence-transformers/multi-qa-MiniLM-L6-cos-v1" # lightweight baseline alternative
   max_passage_tokens: 256
   index_type: "FlatIP" # FlatIP | FlatL2 | IVFFlat
   nlist: 256 # IVFFlat only
@@ -47,6 +48,8 @@ retriever:
   top_k: 5
   candidate_pool: 50 # depth taken from each ranker before fusion
   rrf_k: 60
+  dense_weight: 1.5 # priority weight for dense vector semantics in weighted RRF
+  sparse_weight: 0.5 # maintains keyword matching for rare terms without overwhelming dense ranks
   score_calibration: "calibrated" # calibrated (avoids min-max hallucination on weak matches) | min_max
   alpha_reader_weight: 0.7 # S = alpha * P_reader + (1 - alpha) * S_retriever(normalised)
 

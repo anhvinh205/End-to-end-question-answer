@@ -105,9 +105,12 @@ def main() -> None:
         ]
         results["reader"] = evaluate_reader(reader, gold, show_progress=True)
     if not args.skip_e2e:
-        pipeline = EndToEndQAPipeline(
-            retriever, reader, float(cfg["retriever"]["alpha_reader_weight"])
-        )
+        from nq_qa.pipeline.factory import build_pipeline
+
+        pipeline = build_pipeline(cfg, allow_sample_fallback=False)
+        pipeline.retriever = retriever
+        if reader is not None:
+            pipeline.reader = reader
         results["end_to_end"] = {
             mode: evaluate_end_to_end(
                 pipeline, queries, int(ecfg["e2e_top_k"]), mode, show_progress=True
@@ -121,9 +124,16 @@ def main() -> None:
         "corpus_passages": len(index),
         "encoder": (retriever.encoder.spec["model"] if retriever.encoder else None),
         "reader": reader.model_name_or_path if reader else None,
-        "device": "cuda"
-        if torch.cuda.is_available()
-        else f"cpu ({platform.processor() or platform.machine()})",
+        "reranker": (
+            cfg.get("reranker", {}).get("model_name")
+            if cfg.get("reranker", {}).get("enabled", False)
+            else None
+        ),
+        "device": (
+            "cuda"
+            if torch.cuda.is_available()
+            else f"cpu ({platform.processor() or platform.machine()})"
+        ),
         "torch": torch.__version__,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     }

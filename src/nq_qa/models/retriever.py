@@ -326,15 +326,20 @@ def _make_faiss_index(
 
 
 # --------------------------------------------------------------------------- fusion
-def reciprocal_rank_fusion(rankings: Sequence[Sequence[int]], k: int = 60) -> dict[int, float]:
-    """Reciprocal Rank Fusion: ``score(d) = sum_r 1 / (k + rank_r(d))`` with 1-based ranks.
+def reciprocal_rank_fusion(
+    rankings: Sequence[Sequence[int]],
+    k: int = 60,
+    weights: Sequence[float] | None = None,
+) -> dict[int, float]:
+    """Weighted Reciprocal Rank Fusion: ``score(d) = sum_r weight_r / (k + rank_r(d))`` with 1-based ranks.
 
     A document missing from a ranking contributes nothing for that ranking.
     """
     fused: dict[int, float] = defaultdict(float)
-    for ranking in rankings:
+    w_list = list(weights) if weights is not None else [1.0] * len(rankings)
+    for ranking, w in zip(rankings, w_list, strict=False):
         for rank, doc in enumerate(ranking, start=1):
-            fused[doc] += 1.0 / (k + rank)
+            fused[doc] += float(w) / (k + rank)
     return dict(fused)
 
 
@@ -352,6 +357,8 @@ class HybridRetriever:
         index_type: str = "FlatIP",
         nlist: int = 256,
         nprobe: int = 8,
+        dense_weight: float = 1.0,
+        sparse_weight: float = 1.0,
     ) -> None:
         if mode not in RETRIEVAL_MODES:
             raise ValueError(f"mode must be one of {RETRIEVAL_MODES}, got {mode!r}")
@@ -363,6 +370,8 @@ class HybridRetriever:
         self.index_type = index_type
         self.nlist = nlist
         self.nprobe = nprobe
+        self.dense_weight = dense_weight
+        self.sparse_weight = sparse_weight
 
     def build_index(self, passages: Sequence[Passage], show_progress: bool = False) -> PassageIndex:
         """Build an index with this retriever's encoder (does **not** replace ``self.index``)."""
@@ -418,7 +427,9 @@ class HybridRetriever:
         sparse_scores = dict(sparse)
         if mode == "hybrid":
             fused = reciprocal_rank_fusion(
-                [[d for d, _ in dense], [d for d, _ in sparse]], self.rrf_k
+                [[d for d, _ in dense], [d for d, _ in sparse]],
+                self.rrf_k,
+                weights=[self.dense_weight, self.sparse_weight],
             )
             ranked = sorted(fused.items(), key=lambda item: item[1], reverse=True)[:top_k]
         elif mode == "dense":

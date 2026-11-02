@@ -55,6 +55,8 @@ def build_retriever(
         index_type=rcfg.get("index_type", "FlatIP"),
         nlist=int(rcfg.get("nlist", 256)),
         nprobe=int(rcfg.get("nprobe", 8)),
+        dense_weight=float(rcfg.get("dense_weight", 1.0)),
+        sparse_weight=float(rcfg.get("sparse_weight", 1.0)),
     )
     if not load_index:
         return retriever

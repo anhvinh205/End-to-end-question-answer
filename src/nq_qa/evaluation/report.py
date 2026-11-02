@@ -17,8 +17,9 @@ def render_markdown(results: dict[str, Any]) -> str:
         f"- Split: `{meta.get('split')}` | queries: {meta.get('num_queries')} | "
         f"corpus: {meta.get('corpus_passages')} passages"
     )
+    reranker_info = f" | reranker: `{meta.get('reranker')}`" if meta.get("reranker") else ""
     lines.append(
-        f"- Encoder: `{meta.get('encoder')}` | reader: `{meta.get('reader')}` | "
+        f"- Encoder: `{meta.get('encoder')}` | reader: `{meta.get('reader')}`{reranker_info} | "
         f"device: {meta.get('device')} | generated: {meta.get('generated_at')}"
     )
     lines.append("")

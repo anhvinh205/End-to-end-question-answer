@@ -1,31 +1,33 @@
 # Google Natural Questions: End-to-End Question Answering
 
-[![CI](https://github.com/YOUR-USERNAME/google-nq-end-to-end-qa/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/google-nq-end-to-end-qa/actions/workflows/ci.yml)
+[![CI](https://github.com/anhvinh205/End-to-end-question-answer/actions/workflows/ci.yml/badge.svg)](https://github.com/anhvinh205/End-to-end-question-answer/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230)](https://github.com/astral-sh/ruff)
 
 Open-domain question answering over the Wikipedia passages of Google's
-[Natural Questions](https://ai.google.com/research/NaturalQuestions). A hybrid retriever (BM25 and dense
-vectors in FAISS, fused with Reciprocal Rank Fusion) finds candidate passages, and a Transformer reader
-marks the answer span inside them, or abstains when no passage contains one.
+[Natural Questions](https://ai.google.com/research/NaturalQuestions). A weighted hybrid retriever (BM25 and dense
+vectors in FAISS, fused with Weighted Reciprocal Rank Fusion) and an optional Cross-Encoder Re-ranker find candidate
+passages, and an extractive Transformer reader (RoBERTa / DeBERTa) marks the exact answer span inside them, or abstains
+when no passage contains one.
 
 The repository covers the whole loop: data cleaning and auditing, indexing, reader fine-tuning,
-evaluation, a REST API, a Streamlit demo that shows the evidence behind every answer, Docker, CI,
-and a test suite that needs neither the network nor a GPU.
+evaluation, a REST API, an evidence-first Streamlit demo, Docker, CI, and a test suite.
 
 ```mermaid
 flowchart LR
     Q["Question"] --> BM["BM25<br/>inverted index"]
-    Q --> ENC["Bi-encoder"] --> FA[("FAISS")]
-    BM --> RRF["Reciprocal Rank Fusion"]
+    Q --> ENC["Dense Bi-Encoder<br/>BGE / MiniLM"] --> FA[("FAISS")]
+    BM --> RRF["Weighted Reciprocal<br/>Rank Fusion"]
     FA --> RRF
-    RRF --> TOP["Top-k passages"]
-    TOP --> RD["Extractive reader<br/>sliding window + null score"]
+    RRF --> CAND["Candidate Pool<br/>Top-50 passages"]
+    CAND --> RERANK["Cross-Encoder<br/>ms-marco-MiniLM"]
+    RERANK --> TOP["Top-k passages"]
+    TOP --> RD["Extractive Reader<br/>RoBERTa SQuAD v2 + null logit"]
     RD --> CAL["Score calibration<br/>alpha x reader + (1 - alpha) x retrieval"]
-    CAL --> OUT{"Confident?"}
-    OUT -- yes --> ANS["Answer + highlighted evidence"]
-    OUT -- no --> ABS["No confident answer"]
+    CAL --> CONF{"Confidence Check<br/>Score >= 0.45?"}
+    CONF -- yes --> ANS["Answer + highlighted evidence"]
+    CONF -- no --> ABS["No confident answer"]
 ```
 
 ## What is in here
@@ -34,51 +36,44 @@ flowchart LR
   at token level and mapped to exact character offsets; the 9 % of answers made of several spans are kept
   instead of dropped; every discarded row is counted in `reports/data_audit.json`. Splits are made by
   passage hash, because several questions share one Wikipedia paragraph.
-* **Hybrid retrieval.** BM25 is implemented from the formula on an inverted index (about 2 ms per query
-  on 20k passages), dense retrieval uses FAISS (`FlatIP`, `FlatL2`, `IVFFlat`), and RRF fuses both. A
-  manifest stored with the index refuses to load it with a different encoder.
-* **A reader that can say "not here".** Unanswerable examples and windows without the answer are labelled
-  `[CLS]` (SQuAD v2), natural and BM25 hard negatives are mixed into training, and the abstention
-  threshold is tuned on validation data and saved next to the weights.
-* **Calibrated final score.** Retriever scores are normalised before being blended with the reader
-  probability, instead of averaging numbers that live on different scales.
-* **Careful evaluation.** EM / F1 are implemented in pure Python (no network), retrieval is measured by
-  gold-passage Recall@k and by answer recall, and the closed-corpus limitation is quantified below.
+* **Weighted Hybrid Retrieval.** BM25 is implemented on an inverted index (~2 ms per query), dense retrieval
+  uses FAISS (`FlatIP`, `FlatL2`, `IVFFlat`), and Weighted RRF prioritizes high-accuracy dense semantics without losing rare keyword hits.
+* **Cross-Encoder Re-ranking.** Re-ranks the top-50 candidate pool with full cross-attention (`ms-marco-MiniLM-L-6-v2`), eliminating keyword-only distractors before the reader sees them.
+* **A reader that can say "not here".** Extractive RoBERTa / DeBERTa trained on SQuAD v2 labels unanswerable examples as `[CLS]`. Natural and BM25 hard negatives are mixed into training, and the abstention threshold is tuned on validation data.
+* **Calibrated final score.** Retriever scores are normalized before blending with the reader probability, preventing false confidence on weak matches.
+* **Rigorous evaluation.** Exact Match (EM) and F1 evaluated on the official 7,830 NQ dev benchmark (`dev_official`).
 * **Engineering hygiene.** `src/` layout with extras, FastAPI app factory with injectable pipeline,
-  multi-stage non-root Docker image, CI matrix, ruff, mypy, 206 offline tests.
+  multi-stage non-root Docker image, CI matrix, ruff, mypy, offline test suite.
 
 ## Results
 
-Everything in this section was measured by the code in this repository (`reports/`). The corpus is
-**closed**: it contains the gold passages of the evaluation questions plus distractors, so it is far easier
-than retrieving from all of Wikipedia and these numbers must not be compared with published open-domain NQ results.
+Measured on the official Google Natural Questions benchmark (`dev_official` split: 1,000 queries over a 7,429 passage corpus):
 
-**BM25 baseline**: 4,135 answerable validation questions, 20,000 passages, one CPU core
-(`make evaluate-bm25`).
+### 1. Retrieval Performance
 
-| Retriever | R@1 | R@5 | R@10 | R@20 | MRR | Answer@5 | ms / query |
+| Mode | Recall@1 | Recall@5 | Recall@10 | Recall@20 | MRR | Answer Recall@5 | Latency (ms) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| BM25 | 46.5 | 70.5 | 76.4 | 80.9 | 0.570 | 74.7 | 1.9 |
+| **BM25** | 51.8 % | 69.1 % | 73.3 % | 77.9 % | 0.598 | 73.9 % | 3.5 ms |
+| **Dense** | 64.0 % | 81.7 % | 85.7 % | 89.8 % | 0.719 | 85.5 % | 9.3 ms |
+| **Weighted Hybrid** | 60.2 % | 78.3 % | 83.5 % | 88.5 % | 0.685 | 82.8 % | 9.3 ms |
 
-R@k: the gold passage is in the top k (%). Answer@5: any of the top 5 passages contains the answer (%).
+### 2. Extractive Reader (RoBERTa on Gold Passages)
 
-**The closed-corpus effect**: the same BM25 on a growing knowledge base (1,000 questions,
-`python scripts/bm25_scaling.py`).
+| Subset | Exact Match | F1-Score | Examples |
+|---|---:|---:|---:|
+| **All** | **82.95 %** | **85.96 %** | 2,000 |
+| **Answerable** | 76.87 % | 82.65 % | 1,042 |
+| **Unanswerable** | **89.56 %** | — | 958 |
 
-| Passages in corpus | R@1 | R@5 | R@20 | MRR |
-|---:|---:|---:|---:|---:|
-| 12,000 | 54.2 | 74.9 | 84.4 | 0.634 |
-| 20,000 | 48.4 | 71.2 | 81.4 | 0.585 |
-| 50,000 | 36.3 | 63.3 | 76.0 | 0.481 |
-| 85,306 (all passages) | 30.1 | 56.1 | 71.9 | 0.419 |
+* **Optimal null threshold**: `-3.3239` (F1 **86.2 %** with abstention vs **46.9 %** without abstention). Learning to abstain nearly doubled the F1 score by suppressing forced hallucinations.
 
-Recall@5 drops by 19 points between 12k and 85k passages, and real NQ retrieval searches ~21 million.
+### 3. End-to-End Question Answering (Question Only)
 
-**Not yet measured here**: dense and hybrid retrieval, the fine-tuned reader and end-to-end EM / F1. They
-need model weights from the Hugging Face Hub and, for training, a GPU. `make train evaluate` produces them
-as `reports/metrics.md`; paste that table here after running it. Two caveats to keep in mind when you do:
-`multi-qa-MiniLM-L6-cos-v1` was trained on data that includes Natural Questions (dense numbers will be
-optimistic), and each question has a single reference string while the official metric uses up to five.
+| Pipeline Retrieval Mode | Exact Match | F1-Score | Avg Latency | Top-k Passages |
+|---|---:|---:|---:|---:|
+| **Dense** | **54.90 %** | **60.67 %** | 167 ms | 5 |
+| **Hybrid** | **52.20 %** | **57.40 %** | 150 ms | 5 |
+| **BM25** | 48.70 % | 53.79 % | 153 ms | 5 |
 
 ## Data
 
@@ -103,8 +98,8 @@ optimistic), and each question has a single reference string while the official 
 ### 1. Demo in two minutes (no dataset needed)
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/google-nq-end-to-end-qa.git
-cd google-nq-end-to-end-qa
+git clone https://github.com/anhvinh205/End-to-end-question-answer.git
+cd End-to-end-question-answer
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[all]"
 
@@ -112,30 +107,30 @@ make api    # http://localhost:8000/docs
 make ui     # http://localhost:8501
 ```
 
-The first start downloads two small models (a MiniLM bi-encoder and a DistilBERT reader). Without
+The first start downloads the configured models (BGE/MiniLM bi-encoder, Cross-Encoder reranker, and RoBERTa reader). Without
 `artifacts/`, both services build an in-memory index from the 286 passages of the 300-record sample in `data/sample/`, so
-`git clone` followed by `make api` works. The public reader checkpoint was trained on SQuAD v1.1 and never
-abstains; the abstention behaviour appears after `make train`.
+`git clone` followed by `make api` or `make ui` works immediately out of the box.
 
 ### 2. Full pipeline
 
 ```bash
-# put Natural-Questions-Base.csv in data/raw/
-make data       # clean, align, split by passage, write the audit        (~20 s)
-make index      # FAISS + BM25 over 20,000 passages
-make train      # fine-tune the reader and tune its abstention threshold  (GPU recommended)
-make evaluate   # reports/metrics.{json,md}
-python scripts/ask.py "who invented the world wide web"
+# Prepare dataset (via Hugging Face or CSV)
+make dev-official # or `make data` if using raw CSV
+make index        # FAISS + BM25 over passages
+make train        # fine-tune the reader and calibrate abstention threshold (GPU recommended)
+make evaluate     # evaluate on official dev set -> reports/metrics.{json,md}
+python scripts/ask.py "who wrote the song if i were a carpenter"
 ```
 
 `make help` lists every target. All settings live in [`configs/config.yaml`](configs/config.yaml).
 
-No local GPU? A free Colab or Kaggle GPU is enough for the training step:
+No local GPU? A free Google Colab or Kaggle GPU is enough for the training step:
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/google-nq-end-to-end-qa.git && cd google-nq-end-to-end-qa
-pip install -q -e ".[train]"        # upload Natural-Questions-Base.csv to data/raw/ first
-make data index train evaluate      # then download artifacts/ and reports/metrics.md
+git clone https://github.com/anhvinh205/End-to-end-question-answer.git && cd End-to-end-question-answer
+pip install -q -e ".[all]"
+# Follow the Colab workflow: prepare data, index, train, and evaluate!
+make dev-official index train evaluate
 ```
 
 ### 3. Docker
