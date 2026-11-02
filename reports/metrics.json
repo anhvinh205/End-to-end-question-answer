@@ -1,27 +1,104 @@
 {
   "retrieval": {
     "bm25": {
-      "recall@1": 0.521,
+      "recall@1": 0.518,
       "recall@5": 0.691,
       "recall@10": 0.733,
       "recall@20": 0.779,
-      "mrr": 0.5992,
+      "mrr": 0.5977,
       "answer_recall@1": 0.566,
       "answer_recall@5": 0.739,
       "answer_recall@10": 0.786,
       "answer_recall@20": 0.828,
       "queries": 1000.0,
-      "avg_latency_ms": 4.3
+      "avg_latency_ms": 3.54
+    },
+    "dense": {
+      "recall@1": 0.64,
+      "recall@5": 0.817,
+      "recall@10": 0.857,
+      "recall@20": 0.898,
+      "mrr": 0.7189,
+      "answer_recall@1": 0.689,
+      "answer_recall@5": 0.855,
+      "answer_recall@10": 0.887,
+      "answer_recall@20": 0.914,
+      "queries": 1000.0,
+      "avg_latency_ms": 9.32
+    },
+    "hybrid": {
+      "recall@1": 0.602,
+      "recall@5": 0.783,
+      "recall@10": 0.835,
+      "recall@20": 0.885,
+      "mrr": 0.6854,
+      "answer_recall@1": 0.657,
+      "answer_recall@5": 0.828,
+      "answer_recall@10": 0.872,
+      "answer_recall@20": 0.912,
+      "queries": 1000.0,
+      "avg_latency_ms": 9.34
+    }
+  },
+  "reader": {
+    "exact": 82.95,
+    "f1": 85.96,
+    "total": 2000.0,
+    "HasAns_exact": 76.87,
+    "HasAns_f1": 82.65,
+    "HasAns_total": 1042.0,
+    "NoAns_exact": 89.56,
+    "NoAns_total": 958.0,
+    "best_null_threshold": -3.3239,
+    "f1_at_best_threshold": 86.2,
+    "f1_without_abstention": 46.9
+  },
+  "end_to_end": {
+    "bm25": {
+      "exact": 48.7,
+      "f1": 53.79,
+      "total": 1000.0,
+      "HasAns_exact": 48.7,
+      "HasAns_f1": 53.79,
+      "HasAns_total": 1000.0,
+      "NoAns_exact": 0.0,
+      "NoAns_total": 0.0,
+      "avg_latency_ms": 153.47,
+      "top_k": 5.0
+    },
+    "dense": {
+      "exact": 54.9,
+      "f1": 60.67,
+      "total": 1000.0,
+      "HasAns_exact": 54.9,
+      "HasAns_f1": 60.67,
+      "HasAns_total": 1000.0,
+      "NoAns_exact": 0.0,
+      "NoAns_total": 0.0,
+      "avg_latency_ms": 167.04,
+      "top_k": 5.0
+    },
+    "hybrid": {
+      "exact": 52.2,
+      "f1": 57.4,
+      "total": 1000.0,
+      "HasAns_exact": 52.2,
+      "HasAns_f1": 57.4,
+      "HasAns_total": 1000.0,
+      "NoAns_exact": 0.0,
+      "NoAns_total": 0.0,
+      "avg_latency_ms": 150.07,
+      "top_k": 5.0
     }
   },
   "meta": {
     "split": "dev_official",
     "num_queries": 1000,
     "corpus_passages": 7429,
-    "encoder": null,
-    "reader": null,
-    "device": "cpu (Intel64 Family 6 Model 186 Stepping 2, GenuineIntel)",
-    "torch": "2.15.0+cpu",
-    "generated_at": "2026-11-02 04:39 UTC"
+    "encoder": "sentence-transformers/multi-qa-MiniLM-L6-cos-v1",
+    "reader": "artifacts/models/roberta-finetuned-nq",
+    "device": "cuda",
+    "torch": "2.11.0+cu130",
+    "generated_at": "2026-11-02 13:37 UTC"
   }
 }

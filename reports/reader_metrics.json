@@ -1,0 +1,13 @@
+{
+  "exact": 33.41,
+  "f1": 38.97,
+  "total": 1817.0,
+  "HasAns_exact": 63.43,
+  "HasAns_f1": 73.98,
+  "HasAns_total": 957.0,
+  "NoAns_exact": 0.0,
+  "NoAns_total": 860.0,
+  "best_null_threshold": -3.0111,
+  "f1_at_best_threshold": 72.84,
+  "f1_without_abstention": 38.97
+}

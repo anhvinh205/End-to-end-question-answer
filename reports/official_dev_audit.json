@@ -16,5 +16,5 @@
     "Dl": 18,
     "Dd": 9
   },
-  "output_path": "data\\processed\\dev_official.jsonl"
+  "output_path": "data/processed/dev_official.jsonl"
 }
