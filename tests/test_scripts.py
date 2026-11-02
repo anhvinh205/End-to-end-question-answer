@@ -84,6 +84,7 @@ def workspace(tmp_path_factory, tiny_tokenizer_dir, tiny_encoder_dir) -> dict[st
         base_model=str(base), pretrained_checkpoint=str(base), output_dir=str(root / "artifacts" / "reader"),
         learning_rate=3e-3, num_train_epochs=2, per_device_train_batch_size=4, fp16=False, n_best_size=10,
     )  # fmt: skip
+    cfg["reranker"] = {"enabled": False}
     cfg["evaluation"].update(
         report_dir=str(root / "reports"), num_queries=8, ks=[1, 3], e2e_top_k=3
     )

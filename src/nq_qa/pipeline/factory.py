@@ -127,11 +127,17 @@ def build_reranker(cfg: Mapping[str, Any]) -> Any | None:
     max_length = int(rcfg.get("max_length", 512))
     batch_size = int(rcfg.get("batch_size", 16))
     logger.info("Loading cross-encoder re-ranker from %s", model_name)
-    return CrossEncoderReranker(
-        model_name_or_path=model_name,
-        max_length=max_length,
-        batch_size=batch_size,
-    )
+    try:
+        return CrossEncoderReranker(
+            model_name_or_path=model_name,
+            max_length=max_length,
+            batch_size=batch_size,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Could not load cross-encoder re-ranker (%s): %s. Disabling reranker.", model_name, exc
+        )
+        return None
 
 
 def build_pipeline(

@@ -21,8 +21,7 @@ from nq_qa.data.nq_csv import read_jsonl
 from nq_qa.evaluation.harness import evaluate_end_to_end, evaluate_reader, evaluate_retrieval
 from nq_qa.evaluation.report import render_markdown
 from nq_qa.models.retriever import PassageIndex
-from nq_qa.pipeline.e2e_qa import EndToEndQAPipeline
-from nq_qa.pipeline.factory import build_reader, build_retriever
+from nq_qa.pipeline.factory import build_pipeline, build_reader, build_retriever
 from nq_qa.utils.config import load_config
 from nq_qa.utils.logging import setup_logging
 
@@ -105,8 +104,6 @@ def main() -> None:
         ]
         results["reader"] = evaluate_reader(reader, gold, show_progress=True)
     if not args.skip_e2e:
-        from nq_qa.pipeline.factory import build_pipeline
-
         pipeline = build_pipeline(cfg, allow_sample_fallback=False)
         pipeline.retriever = retriever
         if reader is not None:
