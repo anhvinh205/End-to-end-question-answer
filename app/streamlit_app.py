@@ -35,15 +35,44 @@ FALLBACK_EXAMPLES = [
 
 STYLE = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap');
-html, body, [class*="st-"], .stApp { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+html, body, .stApp {
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
 .block-container { max-width: 52rem; padding-top: 2.5rem; }
-h1 { font-family: 'Source Serif 4', Georgia, serif; font-weight: 600; letter-spacing: -0.01em; }
-.answer-text { font-family: 'Source Serif 4', Georgia, serif; font-size: 2rem; line-height: 1.25;
-               font-weight: 600; color: #14213D; margin: 0.25rem 0 0.75rem 0; }
-.passage { font-family: 'Source Serif 4', Georgia, serif; font-size: 1.08rem; line-height: 1.75;
-           max-width: 68ch; padding: 1rem 1.25rem; border-left: 3px solid #2F5BEA;
-           background: var(--secondary-background-color, #F3F5F9); border-radius: 0 6px 6px 0; }
+h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+.answer-text {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 2rem;
+    line-height: 1.25;
+    font-weight: 600;
+    color: #14213D;
+    margin: 0.25rem 0 0.75rem 0;
+}
+.passage {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.08rem;
+    line-height: 1.75;
+    max-width: 68ch;
+    padding: 1rem 1.25rem;
+    border-left: 3px solid #2F5BEA;
+    background: var(--secondary-background-color, #F3F5F9);
+    border-radius: 0 6px 6px 0;
+    overflow-wrap: anywhere;
+}
+.passage mark {
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+details[data-testid="stExpander"] summary,
+details[data-testid="stExpander"] summary p,
+details[data-testid="stExpander"] summary span {
+    font-family: inherit !important;
+    line-height: 1.5 !important;
+}
 .muted { color: #5B667A; font-size: 0.9rem; }
 </style>
 """
@@ -96,8 +125,10 @@ def render_result(result: dict[str, Any]) -> None:
             f'<div class="passage">{highlight_answer_span(top["context"], top["start"], top["end"])}</div>',
             unsafe_allow_html=True,
         )
+        passage_count = len(candidates)
+        passage_word = "passage" if passage_count == 1 else "passages"
         st.markdown(
-            f'<p class="muted">Read {len(candidates)} passages in {result["latency_ms"]:.0f} ms '
+            f'<p class="muted">Read {passage_count} {passage_word} in {result["latency_ms"]:.0f} ms '
             f"using {MODE_LABELS.get(result['mode'], result['mode']).lower()} retrieval.</p>",
             unsafe_allow_html=True,
         )
@@ -107,28 +138,28 @@ def render_result(result: dict[str, Any]) -> None:
             "Rephrase the question, or read more passages in the sidebar."
         )
 
-    with st.expander("How this answer was chosen"):
-        frame = pd.DataFrame(
-            {
-                "Passage": [c["rank"] for c in candidates],
-                "Answer": [c["answer"] or "-" for c in candidates],
-                "Reader confidence": [round(100 * c["reader_score"], 1) for c in candidates],
-                "Retrieval score": [round(100 * c["retriever_score"], 1) for c in candidates],
-                "Final score": [round(100 * c["combined_score"], 1) for c in candidates],
-                "Confident": ["yes" if c["answerable"] else "no" for c in candidates],
-            }
+    st.subheader("How this answer was chosen")
+    frame = pd.DataFrame(
+        {
+            "Passage": [c["rank"] for c in candidates],
+            "Answer": [c["answer"] or "-" for c in candidates],
+            "Reader confidence": [round(100 * c["reader_score"], 1) for c in candidates],
+            "Retrieval score": [round(100 * c["retriever_score"], 1) for c in candidates],
+            "Final score": [round(100 * c["combined_score"], 1) for c in candidates],
+            "Confident": ["yes" if c["answerable"] else "no" for c in candidates],
+        }
+    )
+    st.dataframe(frame, hide_index=True, use_container_width=True)
+    st.caption(
+        f"Retrieval took {result['retrieval_ms']:.0f} ms and the reader {result['reader_ms']:.0f} ms. "
+        "The final score blends reader confidence with the retrieval score; the weights are set in the config."
+    )
+    for c in candidates[:3]:
+        st.markdown(f"**Passage {c['rank']}**")
+        st.markdown(
+            f'<div class="passage">{highlight_answer_span(c["context"], c["start"], c["end"])}</div>',
+            unsafe_allow_html=True,
         )
-        st.dataframe(frame, hide_index=True)
-        st.caption(
-            f"Retrieval took {result['retrieval_ms']:.0f} ms and the reader {result['reader_ms']:.0f} ms. "
-            "The final score blends reader confidence with the retrieval score; the weights are set in the config."
-        )
-        for c in candidates[:3]:
-            st.markdown(f"**Passage {c['rank']}**")
-            st.markdown(
-                f'<div class="passage">{highlight_answer_span(c["context"], c["start"], c["end"])}</div>',
-                unsafe_allow_html=True,
-            )
 
 
 def knowledge_base_tab(backend: Any, mode: str, top_k: int) -> None:

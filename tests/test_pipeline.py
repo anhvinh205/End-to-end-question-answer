@@ -3,7 +3,11 @@ import pytest
 from nq_qa.data.passage import Passage
 from nq_qa.models.reader import ExtractiveReader, SpanPrediction
 from nq_qa.models.retriever import HybridRetriever
-from nq_qa.pipeline.e2e_qa import EndToEndQAPipeline, min_max_normalize
+from nq_qa.pipeline.e2e_qa import (
+    EndToEndQAPipeline,
+    calibrate_retriever_score,
+    min_max_normalize,
+)
 
 from .conftest import CAPITALS
 
@@ -47,6 +51,59 @@ def test_min_max_normalize():
     assert min_max_normalize([5.0]) == [1.0]
     assert min_max_normalize([3.0, 3.0]) == [1.0, 1.0]
     assert min_max_normalize([]) == []
+
+
+def test_calibrate_retriever_score_prevents_forcing_weak_matches_to_one():
+    # Weak BM25 score (0.8) must NOT be calibrated to 1.0
+    weak_calib = calibrate_retriever_score(0.8, mode="bm25")
+    assert weak_calib < 0.1, f"Expected weak BM25 score to be < 0.1, got {weak_calib}"
+
+    # Decent BM25 score (10.0) gives 0.5
+    assert calibrate_retriever_score(10.0, mode="bm25") == pytest.approx(0.5)
+
+    # Strong BM25 score (30.0) gives 0.75
+    assert calibrate_retriever_score(30.0, mode="bm25") == pytest.approx(0.75)
+
+    # Hybrid RRF score
+    assert calibrate_retriever_score(2.0 / 61.0, mode="hybrid", rrf_k=60) == pytest.approx(1.0)
+    assert calibrate_retriever_score(0.0, mode="hybrid") == 0.0
+
+    # Negative or 0 score gives 0.0
+    assert calibrate_retriever_score(-1.0, mode="bm25") == 0.0
+
+
+def test_pipeline_with_calibrated_scoring(retriever):
+    reader = FakeReader(lambda context: span("ans", score=0.8))
+    pipeline = EndToEndQAPipeline(
+        retriever, reader, alpha_reader_weight=0.7, score_calibration="calibrated"
+    )
+    result = pipeline.answer_question("what is the capital of peru", top_k=3)
+    top = result["candidates"][0]
+    assert 0.0 < top["retriever_score"] <= 1.0
+    assert top["retriever_score"] == pytest.approx(
+        calibrate_retriever_score(top["sparse_score"], "bm25")
+    )
+
+
+class FakeReranker:
+    model_name_or_path = "fake-reranker"
+
+    def rerank(self, query, passages, top_k=5):
+        # Reverse passages to simulate re-ordering
+        rev = list(reversed(passages))[:top_k]
+        for i, p in enumerate(rev, 1):
+            p.rank = i
+            p.score = 5.0 - i
+        return rev
+
+
+def test_pipeline_with_reranker(retriever):
+    reader = FakeReader(lambda context: span("ans", score=0.9))
+    pipeline = EndToEndQAPipeline(retriever, reader, reranker=FakeReranker(), candidate_pool=10)
+    result = pipeline.answer_question("capital of peru", top_k=2)
+    assert len(result["candidates"]) == 2
+    assert "rerank_ms" in result
+    assert result["candidates"][0]["retriever_score"] == 1.0
 
 
 def test_alpha_must_be_a_probability(retriever):

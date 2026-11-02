@@ -2,7 +2,11 @@ import random
 
 import pytest
 
-from nq_qa.data.negatives import build_training_records, synthesize_hard_negatives
+from nq_qa.data.negatives import (
+    build_training_records,
+    is_yes_no_question,
+    synthesize_hard_negatives,
+)
 from nq_qa.evaluation.metrics import answer_in_text
 
 
@@ -78,3 +82,30 @@ def test_only_negatives_available():
 def test_synthesize_with_no_positives_or_zero_n():
     assert synthesize_hard_negatives([], [rec(1)], 5, random.Random(0)) == []
     assert synthesize_hard_negatives([rec(1)], [rec(1)], 0, random.Random(0)) == []
+
+
+def test_is_yes_no_question():
+    assert is_yes_no_question("Is water wet?")
+    assert is_yes_no_question("Can you hear me now")
+    assert is_yes_no_question("Did he play the piano")
+    assert not is_yes_no_question("Who played the incredible hulk")
+    assert not is_yes_no_question("Where does the new movie take place")
+    assert not is_yes_no_question("")
+
+
+def test_filter_yes_no_negatives():
+    positives = [rec(1, answerable=True), rec(10, answerable=True)]
+    yn_neg = {**rec(2, answerable=False), "question": "Is the earth flat"}
+    normal_neg = {**rec(3, answerable=False), "question": "who was the king"}
+
+    # With filtering: yn_neg is skipped from natural pool
+    filtered = build_training_records(
+        [*positives, yn_neg, normal_neg], negative_ratio=0.5, filter_yes_no=True
+    )
+    assert not any(r["id"] == "r2" for r in filtered)
+
+    # Without filtering: yn_neg is kept
+    unfiltered = build_training_records(
+        [*positives, yn_neg, normal_neg], negative_ratio=0.5, filter_yes_no=False
+    )
+    assert any(r["id"] == "r2" for r in unfiltered)

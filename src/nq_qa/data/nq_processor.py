@@ -63,12 +63,10 @@ class NaturalQuestionsProcessor:
 
             # First annotation that actually has a long answer.
             long_start = long_end = -1
-            ann_idx = -1
-            for idx, long_answer in enumerate(annotations["long_answer"]):
+            for long_answer in annotations["long_answer"]:
                 if long_answer.get("start_token", -1) != -1:
                     long_start = long_answer["start_token"]
                     long_end = long_answer["end_token"]
-                    ann_idx = idx
                     break
 
             if long_start == -1:  # unanswerable: borrow a substantial top-level candidate
@@ -96,15 +94,23 @@ class NaturalQuestionsProcessor:
 
             answer_texts: list[str] = []
             answer_starts: list[int] = []
-            if ann_idx >= 0 and ann_idx < len(annotations["short_answers"]):
-                short = annotations["short_answers"][ann_idx]
-                for s_tok, e_tok in zip(short["start_token"], short["end_token"], strict=False):
+            # Extract short answers across all annotators (e.g. 5 annotators in official dev set)
+            short_answers_list = annotations.get("short_answers", [])
+            for short in short_answers_list:
+                for s_tok, e_tok in zip(
+                    short.get("start_token", []), short.get("end_token", []), strict=False
+                ):
                     inside = [t for t in range(s_tok, e_tok) if t in char_of]
                     if not inside:
                         continue
                     start, end = char_of[inside[0]][0], char_of[inside[-1]][1]
-                    answer_texts.append(context[start:end])
-                    answer_starts.append(start)
+                    ans_str = context[start:end].strip()
+                    if ans_str and ans_str not in answer_texts:
+                        answer_texts.append(ans_str)
+                        answer_starts.append(start)
+
+            yes_no_list = annotations.get("yes_no_answer", [])
+            has_yes_no = any(yn in (1, 2) for yn in yes_no_list)
 
             rec_id = str(record.get("id") or hashlib.md5(question.encode()).hexdigest())
             first = tokens[long_start] if long_start < len(tokens) else ""
@@ -115,6 +121,7 @@ class NaturalQuestionsProcessor:
                 "passage_id": passage_id_for(context),
                 "answers": {"text": answer_texts, "answer_start": answer_starts},
                 "has_answer": bool(answer_texts),
+                "has_yes_no": has_yes_no,
                 "context_type": first.strip("<>/").split("_")[0]
                 if is_html[long_start]
                 else "plain",

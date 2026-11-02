@@ -45,7 +45,10 @@ def main() -> None:
 
     train_raw = read_jsonl(processed / "train.jsonl", limit=int(dcfg["max_train_samples"]))
     val_raw = read_jsonl(processed / "validation.jsonl", limit=int(dcfg["max_val_samples"]))
-    train_records = build_training_records(train_raw, float(dcfg["negative_sampling_ratio"]), seed)
+    filter_yn = bool(dcfg.get("filter_yes_no_negatives", True))
+    train_records = build_training_records(
+        train_raw, float(dcfg["negative_sampling_ratio"]), seed, filter_yes_no=filter_yn
+    )
 
     tokenizer = AutoTokenizer.from_pretrained(rcfg["base_model"])
     processor = NaturalQuestionsProcessor(tokenizer, int(dcfg["max_length"]), int(dcfg["stride"]))

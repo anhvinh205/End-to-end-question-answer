@@ -1,0 +1,20 @@
+{
+  "dataset": "google-research-datasets/natural_questions",
+  "split": "validation",
+  "total_records_processed": 7817,
+  "answerable_records": 4058,
+  "unanswerable_records": 3759,
+  "records_with_multiple_reference_answers": 1549,
+  "records_with_yes_no_answer": 117,
+  "context_type_counts": {
+    "P": 4624,
+    "Table": 2722,
+    "Ul": 199,
+    "Tr": 44,
+    "Ol": 18,
+    "Li": 183,
+    "Dl": 18,
+    "Dd": 9
+  },
+  "output_path": "data\\processed\\dev_official.jsonl"
+}

@@ -79,7 +79,9 @@ def test_asking_a_question_shows_the_answer_and_highlights_the_evidence():
     assert not app.exception
     text = markdown_text(app)
     assert '<div class="answer-text">Tim Berners-Lee</div>' in text
-    assert "<mark" in text and "Read 1 passages in 42 ms" in text
+    assert "<mark" in text and "Read 1 passage in 42 ms" in text
+    assert not app.expander
+    assert any(header.value == "How this answer was chosen" for header in app.subheader)
     assert backend.calls == [("who invented the world wide web", 5, "hybrid")]
 
 

@@ -108,14 +108,37 @@ def build_reader(cfg: Mapping[str, Any]) -> ExtractiveReader:
     )
 
 
+def build_reranker(cfg: Mapping[str, Any]) -> Any | None:
+    """Build cross-encoder re-ranker if enabled in config."""
+    rcfg = cfg.get("reranker", {})
+    if not rcfg.get("enabled", False):
+        return None
+    from nq_qa.models.reranker import CrossEncoderReranker
+
+    model_name = str(rcfg.get("model_name", "cross-encoder/ms-marco-MiniLM-L-6-v2"))
+    max_length = int(rcfg.get("max_length", 512))
+    batch_size = int(rcfg.get("batch_size", 16))
+    logger.info("Loading cross-encoder re-ranker from %s", model_name)
+    return CrossEncoderReranker(
+        model_name_or_path=model_name,
+        max_length=max_length,
+        batch_size=batch_size,
+    )
+
+
 def build_pipeline(
     cfg: Mapping[str, Any], *, allow_sample_fallback: bool = True
 ) -> EndToEndQAPipeline:
-    """Full pipeline: retriever + index + reader, wired with the configured score weight."""
+    """Full pipeline: retriever + optional reranker + index + reader, wired with score calibration."""
     retriever = build_retriever(cfg, allow_sample_fallback=allow_sample_fallback)
     reader = build_reader(cfg)
+    reranker = build_reranker(cfg)
+    rcfg = cfg.get("retriever", {})
     return EndToEndQAPipeline(
         retriever=retriever,
         reader=reader,
-        alpha_reader_weight=float(cfg["retriever"].get("alpha_reader_weight", 0.7)),
+        alpha_reader_weight=float(rcfg.get("alpha_reader_weight", 0.7)),
+        reranker=reranker,
+        candidate_pool=int(cfg.get("reranker", {}).get("candidate_pool", 50)),
+        score_calibration=str(rcfg.get("score_calibration", "calibrated")),
     )

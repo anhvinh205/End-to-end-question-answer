@@ -38,6 +38,11 @@ def main() -> None:
     parser.add_argument(
         "--bm25-only", action="store_true", help="BM25 retrieval only (no models needed)"
     )
+    parser.add_argument(
+        "--official-dev",
+        action="store_true",
+        help="Evaluate on the official 7,830 NQ dev set (data/processed/dev_official.jsonl)",
+    )
     parser.add_argument("--skip-reader", action="store_true")
     parser.add_argument("--skip-e2e", action="store_true")
     args = parser.parse_args()
@@ -46,12 +51,24 @@ def main() -> None:
     cfg = load_config(args.config)
     ecfg = cfg["evaluation"]
     processed = Path(cfg["dataset"]["processed_dir"])
-    split = ecfg["split"]
-    if not (processed / f"{split}.jsonl").exists():
-        raise SystemExit(f"{processed}/{split}.jsonl not found - run `make data` first.")
+
+    if args.official_dev:
+        split = "dev_official"
+        dev_file = processed / f"{split}.jsonl"
+        if not dev_file.exists():
+            raise SystemExit(
+                f"{dev_file} not found.\n"
+                "Run `python scripts/prepare_official_dev.py` to stream the official 7,830 NQ dev set from Hugging Face."
+            )
+        split_records = read_jsonl(dev_file)
+    else:
+        split = ecfg["split"]
+        split_file = processed / f"{split}.jsonl"
+        if not split_file.exists():
+            raise SystemExit(f"{split_file} not found - run `make data` first.")
+        split_records = read_jsonl(split_file)
 
     n_queries = args.num_queries or int(ecfg["num_queries"])
-    split_records = read_jsonl(processed / f"{split}.jsonl")
     queries = [r for r in split_records if r["has_answer"]][:n_queries]
     ks = tuple(int(k) for k in ecfg["ks"])
     results: dict = {}
@@ -60,7 +77,10 @@ def main() -> None:
         cfg["retriever"]["mode"] = "bm25"
         retriever = build_retriever(cfg, load_index=False)
         corpus = select_corpus(
-            processed, int(cfg["index"]["corpus_size"]), int(cfg["project"]["seed"])
+            processed,
+            int(cfg["index"]["corpus_size"]),
+            int(cfg["project"]["seed"]),
+            eval_splits=(split,),
         )
         index = PassageIndex.build(corpus, encoder=None)
         retriever.index = index

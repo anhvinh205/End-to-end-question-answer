@@ -21,7 +21,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import faiss
+try:
+    import faiss
+except ImportError:
+    faiss = None  # type: ignore[assignment]
 import numpy as np
 import pandas as pd
 import torch
@@ -287,7 +290,11 @@ class PassageIndex:
 
 def _make_faiss_index(
     vectors: np.ndarray, index_type: str, normalized: bool, nlist: int, nprobe: int
-) -> faiss.Index:
+) -> Any:
+    if faiss is None:
+        raise ImportError(
+            "FAISS is not installed. Run `pip install faiss-cpu` to enable dense index building."
+        )
     dim = vectors.shape[1]
     metric = faiss.METRIC_INNER_PRODUCT if normalized or index_type == "FlatIP" else faiss.METRIC_L2
     if index_type == "FlatL2":
