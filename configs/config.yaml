@@ -50,23 +50,25 @@ retriever:
   score_calibration: "calibrated" # calibrated (avoids min-max hallucination on weak matches) | min_max
   alpha_reader_weight: 0.7 # S = alpha * P_reader + (1 - alpha) * S_retriever(normalised)
 
+pipeline:
+  min_confidence: 0.45 # abstains if combined score is below this threshold
+
 # ---------------------------------------------------------------------- reranker
 reranker:
-  enabled: false # set true to activate Cross-Encoder re-ranking
+  enabled: true # Cross-Encoder re-ranking activated
   model_name: "cross-encoder/ms-marco-MiniLM-L-6-v2" # lightweight & accurate (~10x faster than large)
-  # model_name: "BAAI/bge-reranker-base" # high-accuracy alternative
   candidate_pool: 50 # retrieve 50 passages from hybrid, re-rank down to top_k
   batch_size: 16
   max_length: 512
 
 # ------------------------------------------------------------------------- reader
 reader:
-  base_model: "distilbert-base-uncased" # fast baseline starting point
-  # base_model: "microsoft/deberta-v3-base" # high-accuracy alternative (+8-12% F1 on NQ)
-  pretrained_checkpoint: "distilbert-base-uncased-distilled-squad" # used until a fine-tuned model exists
-  output_dir: "artifacts/models/distilbert-finetuned-nq"
+  base_model: "deepset/roberta-base-squad2" # high-accuracy extractive backbone with SQuAD v2 unanswerable capability
+  pretrained_checkpoint: "deepset/roberta-base-squad2" # industry-standard extractive SQuAD2 checkpoint
+  output_dir: "artifacts/models/roberta-finetuned-nq"
   use_finetuned_if_available: true
-  abstain: true # honour the tuned null threshold (only exists for NQ fine-tuned checkpoints)
+  abstain: true # honour null threshold
+  null_threshold: 0.0 # fallback null threshold when no reader_meta.json is found
   learning_rate: 3.0e-5
   num_train_epochs: 2
   per_device_train_batch_size: 16

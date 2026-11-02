@@ -97,6 +97,11 @@ def build_reader(cfg: Mapping[str, Any]) -> ExtractiveReader:
     dcfg = cfg.get("dataset", {})
     path = resolve_reader_path(cfg)
     logger.info("Loading reader from %s", path)
+    null_thresh = (
+        float(rcfg["null_threshold"])
+        if ("null_threshold" in rcfg and rcfg["null_threshold"] is not None)
+        else None
+    )
     return ExtractiveReader(
         path,
         n_best_size=int(rcfg.get("n_best_size", 20)),
@@ -105,6 +110,7 @@ def build_reader(cfg: Mapping[str, Any]) -> ExtractiveReader:
         stride=int(dcfg.get("stride", 128)),
         batch_size=int(rcfg.get("inference_batch_size", 16)),
         abstain=bool(rcfg.get("abstain", True)),
+        null_threshold=null_thresh,
     )
 
 
@@ -134,6 +140,12 @@ def build_pipeline(
     reader = build_reader(cfg)
     reranker = build_reranker(cfg)
     rcfg = cfg.get("retriever", {})
+    min_confidence = float(
+        cfg.get("pipeline", {}).get(
+            "min_confidence",
+            cfg.get("reader", {}).get("min_confidence", 0.45),
+        )
+    )
     return EndToEndQAPipeline(
         retriever=retriever,
         reader=reader,
@@ -141,4 +153,5 @@ def build_pipeline(
         reranker=reranker,
         candidate_pool=int(cfg.get("reranker", {}).get("candidate_pool", 50)),
         score_calibration=str(rcfg.get("score_calibration", "calibrated")),
+        min_confidence=min_confidence,
     )

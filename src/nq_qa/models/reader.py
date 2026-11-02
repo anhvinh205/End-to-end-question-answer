@@ -149,7 +149,8 @@ class ExtractiveReader:
         self.model.to(self.device).eval()
 
         meta = read_reader_meta(model_name_or_path)
-        threshold = null_threshold if null_threshold is not None else meta.get("null_threshold")
+        meta_threshold = meta.get("null_threshold")
+        threshold = meta_threshold if meta_threshold is not None else null_threshold
         self.null_threshold: float | None = (
             float(threshold) if (abstain and threshold is not None) else None
         )

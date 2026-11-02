@@ -86,6 +86,7 @@ class EndToEndQAPipeline:
         reranker: Any | None = None,
         candidate_pool: int = 50,
         score_calibration: str = "min_max",
+        min_confidence: float = 0.0,
     ) -> None:
         if not 0.0 <= alpha_reader_weight <= 1.0:
             raise ValueError("alpha_reader_weight must be within [0, 1]")
@@ -97,6 +98,7 @@ class EndToEndQAPipeline:
         self.reranker = reranker
         self.candidate_pool = candidate_pool
         self.score_calibration = score_calibration
+        self.min_confidence = min_confidence
 
     # ------------------------------------------------------------------ public API
     def answer_question(
@@ -218,7 +220,15 @@ class EndToEndQAPipeline:
         # Candidates the reader would answer come first; ties broken by the combined score.
         candidates.sort(key=lambda c: (c.answerable, c.combined_score), reverse=True)
 
-        best = candidates[0] if candidates and candidates[0].answerable else None
+        best = (
+            candidates[0]
+            if (
+                candidates
+                and candidates[0].answerable
+                and candidates[0].combined_score >= self.min_confidence
+            )
+            else None
+        )
         return {
             "question": question,
             "answerable": best is not None,
