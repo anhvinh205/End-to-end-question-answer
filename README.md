@@ -40,7 +40,7 @@ flowchart LR
   uses FAISS (`FlatIP`, `FlatL2`, `IVFFlat`), and Weighted RRF prioritizes high-accuracy dense semantics without losing rare keyword hits.
 * **Cross-Encoder Re-ranking.** Re-ranks the top-50 candidate pool with full cross-attention (`ms-marco-MiniLM-L-6-v2`), eliminating keyword-only distractors before the reader sees them.
 * **A reader that can say "not here".** Extractive RoBERTa / DeBERTa trained on SQuAD v2 labels unanswerable examples as `[CLS]`. Natural and BM25 hard negatives are mixed into training, and the abstention threshold is tuned on validation data.
-* **Calibrated final score.** Retriever scores are normalized before blending with the reader probability, preventing false confidence on weak matches.
+* **Calibrated final score.** Retriever and Cross-Encoder scores are calibrated via logistic margin curves before blending with reader probability (35% reader / 65% retriever relevance), preventing short superficial patterns in distractors from hijacking the answer.
 * **Rigorous evaluation.** Exact Match (EM) and F1 evaluated on the official 7,830 NQ dev benchmark (`dev_official`).
 * **Engineering hygiene.** `src/` layout with extras, FastAPI app factory with injectable pipeline,
   multi-stage non-root Docker image, CI matrix, ruff, mypy, offline test suite.
@@ -165,8 +165,7 @@ Short version; the reasoning behind each choice is in [`docs/DESIGN.md`](docs/DE
    best span from the 20 best start and end candidates.
 3. **Decide.** `null_diff = min over windows (start[CLS] + end[CLS]) - best span logit`; the reader abstains when
    it exceeds the tuned threshold.
-4. **Rank.** `S = alpha * P_reader + (1 - alpha) * S_retriever`, with `S_retriever` min-max normalised over the
-   retrieved set; passages the reader would answer rank ahead of abstentions.
+4. **Rank.** `S = alpha * P_reader + (1 - alpha) * S_retriever` (with `alpha = 0.35`, giving 65% weight to retriever / cross-encoder relevance), preventing clean short distractor sentences from overtaking true topical passages; passages the reader would answer rank ahead of abstentions.
 
 The same decoding function serves the API, training-time validation and `scripts/evaluate.py`, so reported
 metrics describe what is actually served.

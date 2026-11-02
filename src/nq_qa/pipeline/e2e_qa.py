@@ -68,8 +68,9 @@ def calibrate_retriever_score(score: float, mode: str, rrf_k: int = 60) -> float
         # Cosine similarity range ~ [0.2, 0.8] for relevant texts
         return min(1.0, max(0.0, (score - 0.2) / 0.6))
     if mode == "rerank":
-        # Logistic sigmoid for cross-encoder relevance logits
-        clamped = max(min(score, 15.0), -15.0)
+        # Calibrated logistic sigmoid for cross-encoder relevance logits
+        # Sharpens margin: strong matches (>4.0) approach 1.0, borderline/distractor matches (~1.5-2.0) drop to ~0.5
+        clamped = max(min((score - 1.5) / 1.5, 12.0), -12.0)
         return 1.0 / (1.0 + math.exp(-clamped))
     # bm25 soft saturation curve: score / (score + 10.0)
     return float(score / (score + 10.0))

@@ -51,7 +51,7 @@ retriever:
   dense_weight: 1.5 # priority weight for dense vector semantics in weighted RRF
   sparse_weight: 0.5 # maintains keyword matching for rare terms without overwhelming dense ranks
   score_calibration: "calibrated" # calibrated (avoids min-max hallucination on weak matches) | min_max
-  alpha_reader_weight: 0.7 # S = alpha * P_reader + (1 - alpha) * S_retriever(normalised)
+  alpha_reader_weight: 0.35 # S = alpha * P_reader + (1 - alpha) * S_retriever(normalised) - balanced 35/65 weighting
 
 pipeline:
   min_confidence: 0.45 # abstains if combined score is below this threshold
