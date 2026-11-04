@@ -99,7 +99,8 @@ def decode_window(
     log_z = _logsumexp(start_logits[allowed]) + _logsumexp(end_logits[allowed])
     null_logit = float(start_logits[0] + end_logits[0])
     start_offset, end_offset = offsets[start_idx], offsets[end_idx]
-    assert start_offset is not None and end_offset is not None
+    if start_offset is None or end_offset is None:
+        return None
     return WindowSpan(
         start_char=int(start_offset[0]),
         end_char=int(end_offset[1]),

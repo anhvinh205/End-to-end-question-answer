@@ -100,6 +100,8 @@ def build_reader(cfg: Mapping[str, Any]) -> ExtractiveReader:
     path = resolve_reader_path(cfg)
     logger.info("Loading reader from %s", path)
     meta = read_reader_meta(path)
+    # A model-owned threshold overrides the config. Let the reader constructor read
+    # it from metadata rather than passing the config fallback over it.
     if "null_threshold" in meta:
         null_thresh = None
     else:

@@ -187,7 +187,7 @@ class EndToEndQAPipeline:
         retrieved: list[RetrievedPassage],
         started: float,
         mode: str,
-        retrieval_ms: float = 0.0,
+        retrieval_ms: float | None = None,
         rerank_ms: float = 0.0,
     ) -> dict[str, Any]:
         reader_start = time.perf_counter()
@@ -238,7 +238,11 @@ class EndToEndQAPipeline:
             "best_context": best.context if best else "",
             "mode": mode,
             "latency_ms": round((time.perf_counter() - started) * 1000.0, 2),
-            "retrieval_ms": retrieval_ms or round((reader_start - started) * 1000.0, 2),
+            "retrieval_ms": (
+                retrieval_ms
+                if retrieval_ms is not None
+                else round((reader_start - started) * 1000.0, 2)
+            ),
             "rerank_ms": rerank_ms,
             "reader_ms": round((reader_done - reader_start) * 1000.0, 2),
             "candidates": [c.to_dict() for c in candidates],

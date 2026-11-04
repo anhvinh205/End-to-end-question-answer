@@ -64,11 +64,9 @@ class CrossEncoderReranker:
             outputs = self.model(**inputs)
             logits = outputs.logits
             if logits.shape[-1] == 1:
-                batch_scores = logits.squeeze(-1).float().cpu().tolist()
+                batch_scores = logits.squeeze(-1).float().cpu().reshape(-1).tolist()
             else:
-                batch_scores = logits[:, -1].float().cpu().tolist()
-            if isinstance(batch_scores, float):
-                batch_scores = [batch_scores]
+                batch_scores = logits[:, -1].float().cpu().reshape(-1).tolist()
             scores.extend(batch_scores)
 
         ranked_indices = sorted(range(len(passages)), key=lambda i: scores[i], reverse=True)[:top_k]

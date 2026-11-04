@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 MANIFEST_SCHEMA = 1
 INDEX_TYPES = ("FlatL2", "FlatIP", "IVFFlat")
 RETRIEVAL_MODES = ("bm25", "dense", "hybrid")
+MIN_VECTORS_PER_CENTROID = 39
 
 
 class IndexMismatchError(RuntimeError):
@@ -302,7 +303,7 @@ def _make_faiss_index(
     elif index_type == "FlatIP":
         index = faiss.IndexFlatIP(dim)
     else:  # IVFFlat needs a training set: roughly >= 39 vectors per centroid
-        nlist = max(1, min(nlist, len(vectors) // 39))
+        nlist = max(1, min(nlist, len(vectors) // MIN_VECTORS_PER_CENTROID))
         if nlist < 2:
             logger.warning(
                 "Too few vectors (%d) for IVFFlat - falling back to a flat index.", len(vectors)
@@ -418,7 +419,8 @@ class HybridRetriever:
         dense: list[tuple[int, float]] = []
         sparse: list[tuple[int, float]] = []
         if mode in ("dense", "hybrid"):
-            assert self.encoder is not None
+            if self.encoder is None:
+                raise RuntimeError("Dense retrieval requires an encoder.")
             dense = index.dense_search(self.encoder.encode([query]), pool)
         if mode in ("bm25", "hybrid"):
             sparse = index.sparse_search(query, pool)
